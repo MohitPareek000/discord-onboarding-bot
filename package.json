@@ -1,0 +1,26 @@
+{
+  "name": "discord-onboarding-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for automated user onboarding with Google Sheets integration",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "onboarding",
+    "google-sheets"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.1",
+    "googleapis": "^131.0.0"
+  }
+}
