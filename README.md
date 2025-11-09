@@ -331,6 +331,171 @@ For issues or questions:
 3. Verify all setup steps were completed
 4. Check Discord and Google API documentation
 
+## Deployment to Railway
+
+Railway provides an easy way to deploy your Discord bot to the cloud with automatic deployments from GitHub.
+
+### Prerequisites for Railway Deployment
+
+- A [Railway account](https://railway.app/) (free tier available)
+- Your project pushed to a GitHub repository
+- Your Discord bot token
+- Your Google Sheets credentials (service account JSON)
+
+### Step-by-Step Railway Deployment
+
+#### 1. Prepare Your Repository
+
+Ensure your project is pushed to GitHub:
+
+```bash
+git add .
+git commit -m "Prepare for Railway deployment"
+git push origin main
+```
+
+#### 2. Set Up Railway Project
+
+1. Go to [Railway](https://railway.app/) and sign in
+2. Click **"New Project"**
+3. Select **"Deploy from GitHub repo"**
+4. Authorize Railway to access your GitHub account
+5. Select your Discord bot repository
+6. Railway will automatically detect it as a Node.js project
+
+#### 3. Configure Environment Variables
+
+In your Railway project dashboard:
+
+1. Click on your service
+2. Go to the **"Variables"** tab
+3. Add the following environment variables:
+
+```
+DISCORD_TOKEN=your_discord_bot_token
+SPREADSHEET_ID=your_google_spreadsheet_id
+LEARNER_ROLE_NAME=Learner
+```
+
+#### 4. Add Google Service Account Credentials
+
+Since `credentials.json` is a file, you need to add it as an environment variable:
+
+1. Open your local `credentials.json` file
+2. Copy the entire JSON content
+3. In Railway Variables, add:
+   ```
+   GOOGLE_APPLICATION_CREDENTIALS_JSON=<paste entire JSON content here>
+   ```
+
+4. Update your code to handle this (add this to the top of `utils/sheets.js` after imports):
+
+```javascript
+// Handle Railway deployment where credentials are stored as env variable
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+  const fs = require('fs');
+  const path = require('path');
+  const credPath = path.join(__dirname, '..', 'credentials.json');
+  fs.writeFileSync(credPath, process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+  process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
+}
+```
+
+Alternatively, use the JSON directly without writing to file (recommended for Railway):
+
+Set `GOOGLE_CREDENTIALS` as the JSON string and modify `utils/sheets.js` to use:
+```javascript
+const auth = new google.auth.GoogleAuth({
+  credentials: process.env.GOOGLE_CREDENTIALS
+    ? JSON.parse(process.env.GOOGLE_CREDENTIALS)
+    : undefined,
+  keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
+```
+
+#### 5. Deploy
+
+Railway will automatically:
+- Install dependencies (`npm install`)
+- Start your bot using the `start` script from `package.json`
+- Restart on failure (configured in `railway.json`)
+
+#### 6. Monitor Your Deployment
+
+1. Check the **"Deployments"** tab to see build logs
+2. Go to **"Logs"** tab to see runtime output
+3. You should see your bot's startup messages:
+   ```
+   ✅ Discord Onboarding Bot is online!
+   🤖 Logged in as: YourBotName#1234
+   ```
+
+#### 7. Verify Bot is Running
+
+1. Check your Discord server - the bot should show as online
+2. Test by having a new member join via an invite link
+3. Monitor Railway logs for any errors
+
+### Railway Configuration Files
+
+The following files have been added to optimize Railway deployment:
+
+- **railway.json** - Railway service configuration
+- **.railwayignore** - Files to exclude from deployment
+
+### Automatic Deployments
+
+Railway automatically redeploys your bot when you push changes to GitHub:
+
+```bash
+git add .
+git commit -m "Update bot features"
+git push origin main
+```
+
+Railway will detect the push and redeploy automatically.
+
+### Important Notes for Railway
+
+- Railway's free tier includes 500 hours/month of usage
+- Your bot will stay running 24/7 (approximately 720 hours/month)
+- Consider upgrading to Railway's paid plan for production use
+- Railway provides automatic SSL and environment isolation
+- Logs are retained for debugging
+
+### Troubleshooting Railway Deployment
+
+| Issue | Solution |
+|-------|----------|
+| Build fails | Check Railway build logs for missing dependencies |
+| Bot goes offline | Check Railway logs for runtime errors |
+| Environment variables not working | Verify all variables are set correctly in Railway dashboard |
+| Google Sheets errors | Ensure `GOOGLE_CREDENTIALS` JSON is valid and properly formatted |
+| Out of free hours | Upgrade to Railway Pro or use a different deployment platform |
+
+### Alternative: Using Railway CLI
+
+You can also deploy using the Railway CLI:
+
+```bash
+# Install Railway CLI
+npm i -g @railway/cli
+
+# Login to Railway
+railway login
+
+# Initialize project
+railway init
+
+# Add environment variables
+railway variables set DISCORD_TOKEN=your_token
+railway variables set SPREADSHEET_ID=your_spreadsheet_id
+
+# Deploy
+railway up
+```
+
 ## License
 
 MIT License - Feel free to modify and use for your projects!

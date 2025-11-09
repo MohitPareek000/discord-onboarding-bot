@@ -1,0 +1,9 @@
+# Files to ignore during Railway deployment
+.git
+.gitignore
+.env
+.env.example
+README.md
+node_modules
+*.log
+.DS_Store

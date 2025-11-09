@@ -11,6 +11,7 @@ let sheetsClient = null;
 
 /**
  * Initialize Google Sheets API client
+ * Supports both local credentials file and Railway environment variable
  */
 function initializeSheetsClient() {
   if (sheetsClient) {
@@ -18,12 +19,29 @@ function initializeSheetsClient() {
   }
 
   try {
-    const credentialsPath = path.resolve(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+    let auth;
 
-    const auth = new google.auth.GoogleAuth({
-      keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    // Railway deployment: credentials stored as JSON string in environment variable
+    if (process.env.GOOGLE_CREDENTIALS) {
+      console.log('📋 Using Google credentials from GOOGLE_CREDENTIALS environment variable');
+      auth = new google.auth.GoogleAuth({
+        credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS),
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    }
+    // Local development: use credentials.json file
+    else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      console.log('📋 Using Google credentials from file:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
+      const credentialsPath = path.resolve(process.env.GOOGLE_APPLICATION_CREDENTIALS);
+
+      auth = new google.auth.GoogleAuth({
+        keyFile: credentialsPath,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    }
+    else {
+      throw new Error('No Google credentials found. Set GOOGLE_CREDENTIALS or GOOGLE_APPLICATION_CREDENTIALS environment variable');
+    }
 
     sheetsClient = google.sheets({ version: 'v4', auth });
     console.log('✅ Google Sheets API client initialized');
