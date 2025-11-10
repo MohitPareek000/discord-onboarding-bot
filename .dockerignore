@@ -1,0 +1,42 @@
+# Node modules (will be installed in container)
+node_modules/
+npm-debug.log
+
+# Environment files (should be provided at runtime)
+.env
+.env.*
+
+# Credentials (should be mounted or provided securely)
+credentials.json
+
+# Git files
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Package lock files (copied explicitly in Dockerfile)
+# package-lock.json
+
+# Test files
+test/
+*.test.js
+
+# Railway config (not needed in container)
+railway.json
