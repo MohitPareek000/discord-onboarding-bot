@@ -6,7 +6,9 @@
       "Bash(node index.js:*)",
       "Bash(node generate-invite-url.js:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(node -c:*)",
+      "Bash(node test-verification.js:*)"
     ],
     "deny": [],
     "ask": []

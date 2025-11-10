@@ -6,6 +6,7 @@
 
 const { appendToSheet } = require('./sheets');
 const { isValidEmail, isValidPhone, isValidName, sanitizeInput } = require('./validators');
+const { verifyPaidLearner } = require('./emailVerification');
 
 // Onboarding questions
 const QUESTIONS = {
@@ -139,6 +140,29 @@ async function handleResponse(message, session, sessions, client) {
 async function finalizeOnboarding(message, session, sessions, client) {
   try {
     await message.channel.send('⏳ Processing your information...');
+
+    // Verify if the user is a paid learner
+    console.log(`🔍 Verifying email: ${session.data.email}...`);
+    const verificationResult = verifyPaidLearner(session.data.email);
+
+    if (!verificationResult.isVerified) {
+      // User is not a paid learner - deny access
+      console.log(`❌ Access denied for ${session.userId} - not a paid learner`);
+
+      await message.channel.send(
+        `❌ **Verification Failed**\n\nSorry, we couldn't verify your email address in our paid learners database.\n\n**You're not a Paid Learner.**\n\nIf you believe this is an error, please contact the administrator with your enrollment details.`
+      );
+
+      // Clean up session
+      sessions.delete(session.userId);
+      return;
+    }
+
+    // User is verified - continue with onboarding
+    console.log(`✅ Email verified: ${session.data.email} is a paid learner`);
+    console.log(`   Name from database: ${verificationResult.learnerData.name}`);
+    console.log(`   Program: ${verificationResult.learnerData.program}`);
+    console.log(`   Batch: ${verificationResult.learnerData.batch}`);
 
     // Prepare data for Google Sheets
     const sheetData = {
