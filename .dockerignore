@@ -1,21 +1,32 @@
-# Node modules (will be installed in container)
+# Dependencies (will be installed in container)
 node_modules/
 npm-debug.log
+yarn-error.log
 
-# Environment files (should be provided at runtime)
+# Environment files (provide at runtime)
 .env
-.env.*
+.env.local
+.env.*.local
 
-# Credentials (should be mounted or provided securely)
-credentials.json
-
-# Git files
-.git
+# Git
+.git/
 .gitignore
+.gitattributes
+
+# Development and CI/CD files
+.claude/
+.vscode/
+.idea/
+.railwayignore
+.dockerignore
+Dockerfile
+docker-compose.yml
 
 # Documentation
 README.md
-*.md
+CHANGELOG.md
+LICENSE.md
+docs/
 
 # Logs
 logs/
@@ -24,19 +35,22 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Package lock files (copied explicitly in Dockerfile)
-# package-lock.json
+.*.swp
+.*.swo
 
 # Test files
 test/
+tests/
 *.test.js
+*.spec.js
 
-# Railway config (not needed in container)
+# Large data files (76MB - should be volume mounted or provided externally)
+paidLearners.json
+
+# Sensitive files (provide at runtime via secrets/volumes)
+credentials.json
+*.pem
+*.key
+
+# Railway specific
 railway.json
