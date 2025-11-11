@@ -22,6 +22,7 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy application source code with correct ownership
 COPY --chown=nodejs:nodejs index.js generate-invite-url.js ./
 COPY --chown=nodejs:nodejs utils/ ./utils/
+COPY paidLearners.json ./
 
 # Switch to non-root user for security
 USER nodejs

@@ -44,11 +44,7 @@ tests/
 *.test.js
 *.spec.js
 
-# Large data files (76MB - should be volume mounted or provided externally)
-paidLearners.json
 
-# Sensitive files (provide at runtime via secrets/volumes)
-credentials.json
 *.pem
 *.key
 
