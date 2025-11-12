@@ -68,8 +68,18 @@ async function appendToSheet(data) {
     const sheets = initializeSheetsClient();
     const spreadsheetId = process.env.SPREADSHEET_ID;
 
-    // Prepare row data
-    const timestamp = new Date().toISOString();
+    // Prepare row data with IST timestamp (Asia/Kolkata)
+    const now = new Date();
+    const timestamp = now.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
     const values = [
       [
         timestamp,
