@@ -150,7 +150,7 @@ async function finalizeOnboarding(message, session, sessions, client) {
       console.log(`❌ Access denied for ${session.userId} - not a paid learner`);
 
       await message.channel.send(
-        `❌ **Verification Failed**\n\nSorry, we couldn't verify your email address in our paid learners database.\n\n**You're not a Paid Learner.**\n\nIf you're facing any issues with login or believe this is an error, please contact <@1425928242333880462> with your enrollment details.`
+        `Hi there! 👋\n\nThe email ID or phone number you entered doesn't match our Scaler records.\n\nPlease double-check and share your registered details with me again.\n\nIf you're still having trouble, please contact our support team through your dashboard for a quick fix! Guide: https://shorturl.at/hbuuM`
       );
 
       // Clean up session
