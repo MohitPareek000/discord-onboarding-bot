@@ -212,14 +212,6 @@ async function finalizeOnboarding(message, session, sessions, client) {
             ReadMessageHistory: true
           });
           console.log(`✅ Granted access to channel #${channel.name} for ${member.user.tag}`);
-
-          // Send a welcome message in the channel to make it prominent
-          try {
-            await channel.send(`🎉 Welcome to the course, <@${member.id}>! We're excited to have you here. Feel free to introduce yourself and start learning!`);
-            console.log(`✅ Sent welcome message in #${channel.name} for ${member.user.tag}`);
-          } catch (msgError) {
-            console.error(`❌ Failed to send welcome message in channel:`, msgError.message);
-          }
         } else {
           console.warn(`⚠️  Channel ${session.channelId} not found in guild`);
         }
