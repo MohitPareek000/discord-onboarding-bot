@@ -56,9 +56,7 @@ function initializeSheetsClient() {
  * Append a row of data to the Google Sheet
  *
  * @param {Object} data - User data to append
- * @param {string} data.name - Full name
  * @param {string} data.email - Email address
- * @param {string} data.phone - Phone number
  * @param {string} data.discordUsername - Discord username (e.g., "username#1234")
  * @param {string} data.channel - Channel/course name
  * @returns {Promise<boolean>} Success status
@@ -83,9 +81,7 @@ async function appendToSheet(data) {
     const values = [
       [
         timestamp,
-        data.name,
         data.email,
-        data.phone,
         data.discordUsername,
         data.channel
       ]
@@ -94,7 +90,7 @@ async function appendToSheet(data) {
     // Append to sheet
     const response = await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Sheet1!A:F', // Adjust sheet name if needed
+      range: 'Sheet1!A:D', // Adjust sheet name if needed
       valueInputOption: 'USER_ENTERED',
       insertDataOption: 'INSERT_ROWS',
       resource: {
@@ -128,11 +124,11 @@ async function initializeSheetHeaders() {
     const sheets = initializeSheetsClient();
     const spreadsheetId = process.env.SPREADSHEET_ID;
 
-    const headers = [['Timestamp', 'Name', 'Email', 'Phone', 'Discord Username', 'Channel']];
+    const headers = [['Timestamp', 'Email', 'Discord Username', 'Channel']];
 
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Sheet1!A1:F1',
+      range: 'Sheet1!A1:D1',
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: headers

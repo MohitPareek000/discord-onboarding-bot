@@ -17,7 +17,6 @@
 
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
-const { appendToSheet } = require('./utils/sheets');
 const { handleOnboarding } = require('./utils/onboarding');
 
 // Validate required environment variables
@@ -159,34 +158,37 @@ client.on('guildMemberAdd', async (member) => {
   }
 });
 
-// Handle button interactions
+// Handle button interactions (e.g., Retry button)
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
-  // Handle Start Onboarding button
-  if (interaction.customId === 'start_onboarding') {
+  // Handle Retry button
+  if (interaction.customId === 'retry_onboarding') {
     const session = onboardingSessions.get(interaction.user.id);
 
     if (!session) {
-      await interaction.reply({ content: '❌ Session not found. Please try rejoining the server.', ephemeral: true });
+      await interaction.reply({
+        content: '❌ No active onboarding session found. Please contact an administrator.',
+        ephemeral: true
+      });
       return;
     }
 
-    // Mark session as started
-    session.started = true;
-
     // Acknowledge the button click
-    await interaction.update({
-      content: interaction.message.content,
-      components: [] // Remove the button
+    await interaction.reply({
+      content: '✅ Let\'s try again!',
+      ephemeral: true
     });
 
-    // Send first question
     const { QUESTIONS, QUESTION_ORDER } = require('./utils/onboarding');
     const firstQuestion = QUESTIONS[QUESTION_ORDER[0]];
 
-    await interaction.followUp(firstQuestion.question);
-    console.log(`▶️  User ${interaction.user.tag} clicked Start Onboarding button`);
+    // Send the email question again
+    await interaction.user.send(`\n${firstQuestion.question}`).catch((error) => {
+      console.error(`❌ Failed to send retry question:`, error.message);
+    });
+
+    console.log(`🔄 User ${interaction.user.tag} is retrying onboarding`);
   }
 });
 

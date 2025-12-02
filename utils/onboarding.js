@@ -10,27 +10,15 @@ const { verifyPaidLearner } = require('./emailVerification');
 
 // Onboarding questions
 const QUESTIONS = {
-  NAME: {
-    key: 'name',
-    question: 'Please enter your **full name**:',
-    validator: isValidName,
-    errorMessage: '❌ Please enter a valid name (at least 2 characters).'
-  },
   EMAIL: {
     key: 'email',
-    question: 'Great! Now, please enter your **email address**:',
+    question: '**Please enter your registered email**',
     validator: isValidEmail,
     errorMessage: '❌ Please enter a valid email address (e.g., user@example.com).'
-  },
-  PHONE: {
-    key: 'phone',
-    question: 'Almost done! Please enter your **phone number**:',
-    validator: isValidPhone,
-    errorMessage: '❌ Please enter a valid phone number (10-15 digits).'
   }
 };
 
-const QUESTION_ORDER = ['NAME', 'EMAIL', 'PHONE'];
+const QUESTION_ORDER = ['EMAIL'];
 
 /**
  * Start the onboarding process for a new member
@@ -66,23 +54,20 @@ async function handleOnboarding(member, channelName, channelId, sessions, client
     sessions.set(member.id, session);
     console.log(`📝 Started onboarding session for ${member.user.tag}`);
 
-    // Send welcome message with Start button
-    const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+    // Send welcome message and first question
+    const welcomeMessage = `**Welcome to your learning journey!** 🎓\n\nWe're excited to have you here! To get started with your course and unlock access to your channel, we need your email address.`;
 
-    const welcomeMessage = `**Welcome to your learning journey!** 🎓\n\nWe're excited to have you here! To get started with your course and unlock access to your channel, we need to collect a few quick details.\n\n**Here's what we'll need:**\n**Step 1:** Your full name\n**Step 2:** Your email address\n**Step 3:** Your phone number\n\nReady? Click the button below to begin!`;
-
-    const startButton = new ButtonBuilder()
-      .setCustomId('start_onboarding')
-      .setLabel('Start Onboarding')
-      .setStyle(ButtonStyle.Primary);
-
-    const row = new ActionRowBuilder().addComponents(startButton);
-
-    await dm.send({
-      content: welcomeMessage,
-      components: [row]
-    }).catch((error) => {
+    await dm.send(welcomeMessage).catch((error) => {
       console.error(`❌ Failed to send welcome message:`, error.message);
+      sessions.delete(member.id);
+      return;
+    });
+
+    // Mark session as started and send first question with spacing
+    session.started = true;
+    const firstQuestion = QUESTIONS[QUESTION_ORDER[0]];
+    await dm.send(`\n${firstQuestion.question}`).catch((error) => {
+      console.error(`❌ Failed to send first question:`, error.message);
       sessions.delete(member.id);
     });
   } catch (error) {
@@ -149,12 +134,23 @@ async function finalizeOnboarding(message, session, sessions, client) {
       // User is not a paid learner - deny access
       console.log(`❌ Access denied for ${session.userId} - not a paid learner`);
 
-      await message.channel.send(
-        `Hi there! 👋\n\nThe email ID or phone number you entered doesn't match our Scaler records.\n\nPlease double-check and share your registered details with me again.\n\nIf you're still having trouble, please contact our support team through your dashboard for a quick fix! Guide: https://shorturl.at/hbuuM`
-      );
+      const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
-      // Clean up session
-      sessions.delete(session.userId);
+      const retryButton = new ButtonBuilder()
+        .setCustomId('retry_onboarding')
+        .setLabel('Retry')
+        .setStyle(ButtonStyle.Primary);
+
+      const row = new ActionRowBuilder().addComponents(retryButton);
+
+      await message.channel.send({
+        content: `Hi there! 👋\n\nThe email ID you entered doesn't match our Scaler records.\n\nPlease click the **Retry** button below to try again with your registered email.\n\nIf you're still having trouble, please contact our support team through your dashboard for a quick fix! Guide: https://shorturl.at/hbuuM`,
+        components: [row]
+      });
+
+      // Reset session to allow retry instead of deleting
+      session.currentStep = 0;
+      session.data = {};
       return;
     }
 
@@ -166,9 +162,7 @@ async function finalizeOnboarding(message, session, sessions, client) {
 
     // Prepare data for Google Sheets
     const sheetData = {
-      name: session.data.name,
       email: session.data.email,
-      phone: session.data.phone,
       discordUsername: session.username,
       channel: session.channelName
     };
@@ -250,9 +244,7 @@ Welcome aboard! 🎉
     }
 
     console.log(`✅ Onboarding completed for ${member.user.tag}`);
-    console.log(`   📋 Name: ${session.data.name}`);
     console.log(`   📧 Email: ${session.data.email}`);
-    console.log(`   📱 Phone: ${session.data.phone}`);
     console.log(`   👤 Discord Username: ${session.username}`);
     console.log(`   📺 Channel: ${session.channelName}\n`);
 
