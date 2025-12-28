@@ -46,28 +46,14 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
 
     const clientId = Buffer.from(process.env.DISCORD_TOKEN.split('.')[0], 'base64').toString();
 
-    // Register commands for specific guilds (instant) instead of global (up to 1 hour)
-    const guildIds = [
-      '1436036949176619081', // SCALER-SDE-LMS
-      '1436037202982338701', // SCALER-DSML-LMS
-      '1436037456012251198', // SCALER-DEVOPS-LMS
-      '1436037709322784930', // SCALER-AIML-LMS
-      '1454047776940752969'  // Testing server
-    ];
+    // Register commands globally (available on all servers)
+    await rest.put(
+      Routes.applicationCommands(clientId),
+      { body: commands }
+    );
 
-    for (const guildId of guildIds) {
-      try {
-        await rest.put(
-          Routes.applicationGuildCommands(clientId, guildId),
-          { body: commands },
-        );
-        console.log(`✅ Registered commands for guild: ${guildId}`);
-      } catch (err) {
-        console.log(`❌ Failed for guild ${guildId}: ${err.message}`);
-      }
-    }
-
-    console.log('Slash commands registered successfully!');
+    console.log('✅ Global slash commands registered successfully!');
+    console.log('⏳ Note: Global commands can take up to 1 hour to appear/update across all servers.');
     console.log('');
     console.log('Available commands:');
     console.log('  /create-course-invite  - Create invite link for a course');
