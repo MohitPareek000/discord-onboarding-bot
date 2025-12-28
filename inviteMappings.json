@@ -125,6 +125,33 @@
       "accessChannelId": "1454048025289818173",
       "accessChannelName": "get-access",
       "createdAt": "2025-12-26T13:14:05.266Z"
+    },
+    "4zkFU4HVtg": {
+      "channelId": "1436055301756551269",
+      "channelName": "aiml-nov25-batch",
+      "label": "aiml-nov25-batch",
+      "guildId": "1436037709322784930",
+      "accessChannelId": "1454928628658995423",
+      "accessChannelName": "get-access",
+      "createdAt": "2025-12-28T20:16:34.855Z"
+    },
+    "q7ZxY9G3qP": {
+      "channelId": "1436055301756551269",
+      "channelName": "aiml-nov25-batch",
+      "label": "hii",
+      "guildId": "1436037709322784930",
+      "accessChannelId": "1454928628658995423",
+      "accessChannelName": "get-access",
+      "createdAt": "2025-12-28T20:26:49.043Z"
+    },
+    "6fBncadQd2": {
+      "channelId": "1437034233343512587",
+      "channelName": "aiml-sep-2025-batch",
+      "label": "aiml-sep-2025-batch",
+      "guildId": "1436037709322784930",
+      "accessChannelId": "1454928628658995423",
+      "accessChannelName": "get-access",
+      "createdAt": "2025-12-28T20:50:16.466Z"
     }
   }
 }

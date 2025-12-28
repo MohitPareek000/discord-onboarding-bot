@@ -184,8 +184,8 @@ client.on('interactionCreate', async (interaction) => {
     // /create-course-invite command
     if (interaction.commandName === 'create-course-invite') {
       const targetChannel = interaction.options.getChannel('channel');
-      const label = interaction.options.getString('label');
       const sendToString = interaction.options.getString('send-to');
+      const label = targetChannel.name; // Use channel name as label
 
       await interaction.reply({ content: '⏳ Creating course invite...', ephemeral: true });
 
@@ -274,19 +274,30 @@ client.on('interactionCreate', async (interaction) => {
               const dm = await user.createDM();
 
               if (member) {
-                // Existing member - send button to start verification directly
-                const verifyButton = new ButtonBuilder()
-                  .setCustomId(`dm_verify_${interaction.guild.id}_${targetChannel.id}`)
-                  .setLabel(`Verify for ${label}`)
-                  .setStyle(ButtonStyle.Primary);
+                // Existing member - start onboarding session directly
+                const session = {
+                  userId: member.id,
+                  username: member.user.tag,
+                  guildId: interaction.guild.id,
+                  channelName: targetChannel.name,
+                  channelId: targetChannel.id,
+                  currentStep: 0,
+                  data: {},
+                  started: true,
+                  startedAt: Date.now()
+                };
 
-                const buttonRow = new ActionRowBuilder().addComponents(verifyButton);
+                onboardingSessions.set(member.id, session);
 
-                await dm.send({
-                  content: `**You've been invited to ${label}!** 🎓\n\n` +
-                    `Click the button below to verify your email and get access to the course channel.`,
-                  components: [buttonRow]
-                });
+                // Send welcome message
+                const welcomeMessage = `**You've been invited to ${targetChannel.name}!** 🎓\n\nWe're excited to have you here! To get started with your course and unlock access to your channel, we need your email address.`;
+                await dm.send(welcomeMessage);
+
+                // Send email question
+                const { QUESTIONS, QUESTION_ORDER } = require('./utils/onboarding');
+                const firstQuestion = QUESTIONS[QUESTION_ORDER[0]];
+                await dm.send(`\n${firstQuestion.question}`);
+
               } else {
                 // Not a member yet - send invite link
                 await dm.send(

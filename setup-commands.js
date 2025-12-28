@@ -23,12 +23,6 @@ const commands = [
     )
     .addStringOption(option =>
       option
-        .setName('label')
-        .setDescription('Display name for the course (e.g., "AIML Masterclass")')
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option
         .setName('send-to')
         .setDescription('Users to send invite to (mention multiple: @user1 @user2 @user3)')
         .setRequired(false)
