@@ -4,7 +4,7 @@ const path = require('path');
 /**
  * Verifies if an email exists in the paidLearners.json file
  * @param {string} email - The email address to verify
- * @returns {Object} - { isVerified: boolean, learnerData: Object|null }
+ * @returns {Object} - { isVerified: boolean, learnerData: Object|null, reason: string|null }
  */
 function verifyPaidLearner(email) {
     try {
@@ -14,7 +14,7 @@ function verifyPaidLearner(email) {
         // Check if file exists
         if (!fs.existsSync(paidLearnersPath)) {
             console.error('paidLearners.json file not found');
-            return { isVerified: false, learnerData: null };
+            return { isVerified: false, learnerData: null, reason: 'database_error' };
         }
 
         // Read and parse the JSON file
@@ -26,28 +26,29 @@ function verifyPaidLearner(email) {
 
         // Search for the learner by email
         const learner = paidLearners.find(
-            learner => learner.email && learner.email.toLowerCase().trim() === normalizedEmail
+            l => l.email && l.email.toLowerCase().trim() === normalizedEmail
         );
 
-        if (learner) {
-            console.log(`✓ Email verified: ${email} is a paid learner`);
-            return {
-                isVerified: true,
-                learnerData: {
-                    name: learner.name,
-                    email: learner.email,
-                    program: learner.program,
-                    batch: learner.batch
-                }
-            };
-        } else {
+        if (!learner) {
             console.log(`✗ Email not found: ${email} is not a paid learner`);
-            return { isVerified: false, learnerData: null };
+            return { isVerified: false, learnerData: null, reason: 'email_not_found' };
         }
+
+        console.log(`✓ Email verified: ${email} is a paid learner`);
+        return {
+            isVerified: true,
+            learnerData: {
+                name: learner.name,
+                email: learner.email,
+                program: learner.program,
+                batch: learner.batch
+            },
+            reason: null
+        };
 
     } catch (error) {
         console.error('Error verifying paid learner:', error);
-        return { isVerified: false, learnerData: null };
+        return { isVerified: false, learnerData: null, reason: 'database_error' };
     }
 }
 

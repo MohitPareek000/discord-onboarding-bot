@@ -9,7 +9,11 @@
       "Bash(git add:*)",
       "Bash(node -c:*)",
       "Bash(node test-verification.js:*)",
-      "Bash(npm start)"
+      "Bash(npm start)",
+      "Bash(pkill:*)",
+      "Bash(node setup-commands.js:*)",
+      "Bash(node -e:*)",
+      "Bash(node check-bot-access.js:*)"
     ],
     "deny": [],
     "ask": []

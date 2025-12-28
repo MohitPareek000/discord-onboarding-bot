@@ -47,7 +47,7 @@ async function handleOnboarding(member, channelName, channelId, sessions, client
       channelId: channelId,
       currentStep: 0,
       data: {},
-      started: false, // Will be set to true when user clicks Start button
+      started: false, // Will be set to true when onboarding starts
       startedAt: Date.now()
     };
 
@@ -131,9 +131,6 @@ async function finalizeOnboarding(message, session, sessions, client) {
     const verificationResult = verifyPaidLearner(session.data.email);
 
     if (!verificationResult.isVerified) {
-      // User is not a paid learner - deny access
-      console.log(`❌ Access denied for ${session.userId} - not a paid learner`);
-
       const { ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 
       const retryButton = new ButtonBuilder()
@@ -143,8 +140,12 @@ async function finalizeOnboarding(message, session, sessions, client) {
 
       const row = new ActionRowBuilder().addComponents(retryButton);
 
+      // Email not found
+      console.log(`❌ Access denied for ${session.userId} - email not found`);
+      const errorMessage = `Hi there! 👋\n\nThe email ID you entered doesn't match our Scaler records.\n\nPlease click the **Retry** button below to try again with your registered email.\n\nIf you're still having trouble, please contact our support team through your dashboard for a quick fix! Guide: https://shorturl.at/hbuuM`;
+
       await message.channel.send({
-        content: `Hi there! 👋\n\nThe email ID you entered doesn't match our Scaler records.\n\nPlease click the **Retry** button below to try again with your registered email.\n\nIf you're still having trouble, please contact our support team through your dashboard for a quick fix! Guide: https://shorturl.at/hbuuM`,
+        content: errorMessage,
         components: [row]
       });
 
