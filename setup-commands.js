@@ -25,7 +25,7 @@ const commands = [
       option
         .setName('send-to')
         .setDescription('Users to send invite to (mention multiple: @user1 @user2 @user3)')
-        .setRequired(false)
+        .setRequired(true)
     )
     .setDefaultMemberPermissions(0) // Admin only
     .toJSON(),

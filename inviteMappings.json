@@ -152,6 +152,15 @@
       "accessChannelId": "1454928628658995423",
       "accessChannelName": "get-access",
       "createdAt": "2025-12-28T20:50:16.466Z"
+    },
+    "KEVt8pRPJd": {
+      "channelId": "1437034280546078750",
+      "channelName": "aiml-aug-2025-batch",
+      "label": "aiml-aug-2025-batch",
+      "guildId": "1436037709322784930",
+      "accessChannelId": "1454928628658995423",
+      "accessChannelName": "get-access",
+      "createdAt": "2025-12-28T20:56:18.896Z"
     }
   }
 }

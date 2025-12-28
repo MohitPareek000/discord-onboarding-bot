@@ -196,13 +196,7 @@ client.on('interactionCreate', async (interaction) => {
           SendMessages: false
         });
 
-        // Make sure the get-access channel (current channel) is visible to everyone
-        await interaction.channel.permissionOverwrites.edit(interaction.guild.roles.everyone, {
-          ViewChannel: true,
-          SendMessages: false // Users can see but not type
-        });
-
-        // Create an invite from the current channel (access hub)
+        // Create an invite from the current channel
         const invite = await interaction.channel.createInvite({
           maxAge: 0, // Never expires
           maxUses: 0, // Unlimited uses
