@@ -13,7 +13,10 @@
       "Bash(pkill:*)",
       "Bash(node setup-commands.js:*)",
       "Bash(node -e:*)",
-      "Bash(node check-bot-access.js:*)"
+      "Bash(node check-bot-access.js:*)",
+      "Bash(git restore:*)",
+      "Bash(node generate-bulk-invites.js:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

@@ -21,12 +21,6 @@ const commands = [
         .setRequired(true)
         .addChannelTypes(ChannelType.GuildText)
     )
-    .addStringOption(option =>
-      option
-        .setName('send-to')
-        .setDescription('Users to send invite to (mention multiple: @user1 @user2 @user3)')
-        .setRequired(true)
-    )
     .setDefaultMemberPermissions(0) // Admin only
     .toJSON(),
 
@@ -34,6 +28,13 @@ const commands = [
   new SlashCommandBuilder()
     .setName('list-course-invites')
     .setDescription('List all active course invite links')
+    .setDefaultMemberPermissions(0) // Admin only
+    .toJSON(),
+
+  // Setup generic verification button in #get-access
+  new SlashCommandBuilder()
+    .setName('setup-access-button')
+    .setDescription('Post a verification button in #get-access channel')
     .setDefaultMemberPermissions(0) // Admin only
     .toJSON(),
 ];
@@ -58,6 +59,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
     console.log('Available commands:');
     console.log('  /create-course-invite  - Create invite link for a course');
     console.log('  /list-course-invites   - List all course invites');
+    console.log('  /setup-access-button   - Post verification button in #get-access');
     console.log('');
   } catch (error) {
     console.error('Error:', error.message);

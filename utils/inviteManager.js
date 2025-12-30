@@ -3,41 +3,11 @@
  *
  * Manages invite-to-course mappings for tracking which course
  * a user should be granted access to based on the invite they used.
+ *
+ * Now uses Google Sheets for centralized storage instead of local JSON file.
  */
 
-const fs = require('fs');
-const path = require('path');
-
-const MAPPINGS_FILE = path.join(__dirname, '..', 'inviteMappings.json');
-
-/**
- * Load mappings from file
- */
-function loadMappings() {
-    try {
-        if (!fs.existsSync(MAPPINGS_FILE)) {
-            return { mappings: {} };
-        }
-        const content = fs.readFileSync(MAPPINGS_FILE, 'utf8');
-        return JSON.parse(content);
-    } catch (error) {
-        console.error('Error loading invite mappings:', error.message);
-        return { mappings: {} };
-    }
-}
-
-/**
- * Save mappings to file
- */
-function saveMappings(data) {
-    try {
-        fs.writeFileSync(MAPPINGS_FILE, JSON.stringify(data, null, 2));
-        return true;
-    } catch (error) {
-        console.error('Error saving invite mappings:', error.message);
-        return false;
-    }
-}
+const { saveInviteMapping, getInviteMapping, getInviteMappingsForGuild } = require('./sheets');
 
 /**
  * Add a new invite-to-course mapping
@@ -48,49 +18,63 @@ function saveMappings(data) {
  * @param {string} courseInfo.label - Display label for the course
  * @param {string} courseInfo.program - Program code (e.g., "AIML", "DSML")
  * @param {string} courseInfo.guildId - Guild ID
+ * @returns {Promise<boolean>} Success status
  */
-function addMapping(inviteCode, courseInfo) {
-    const data = loadMappings();
-    data.mappings[inviteCode] = {
-        ...courseInfo,
-        createdAt: new Date().toISOString()
-    };
-    return saveMappings(data);
+async function addMapping(inviteCode, courseInfo) {
+    try {
+        await saveInviteMapping(inviteCode, courseInfo);
+        return true;
+    } catch (error) {
+        console.error('❌ Error adding invite mapping:', error.message);
+        return false;
+    }
 }
 
 /**
  * Get course info by invite code
  * @param {string} inviteCode - The Discord invite code
- * @returns {Object|null} Course info or null if not found
+ * @returns {Promise<Object|null>} Course info or null if not found
  */
-function getMapping(inviteCode) {
-    const data = loadMappings();
-    return data.mappings[inviteCode] || null;
-}
-
-/**
- * Remove a mapping
- * @param {string} inviteCode - The Discord invite code
- */
-function removeMapping(inviteCode) {
-    const data = loadMappings();
-    delete data.mappings[inviteCode];
-    return saveMappings(data);
+async function getMapping(inviteCode) {
+    try {
+        return await getInviteMapping(inviteCode);
+    } catch (error) {
+        console.error('❌ Error getting invite mapping:', error.message);
+        return null;
+    }
 }
 
 /**
  * Get all mappings for a guild
  * @param {string} guildId - Guild ID
+ * @returns {Promise<Object>} Mappings object
  */
-function getMappingsForGuild(guildId) {
-    const data = loadMappings();
-    const result = {};
-    for (const [code, info] of Object.entries(data.mappings)) {
-        if (info.guildId === guildId) {
-            result[code] = info;
-        }
+async function getMappingsForGuild(guildId) {
+    try {
+        return await getInviteMappingsForGuild(guildId);
+    } catch (error) {
+        console.error('❌ Error getting guild mappings:', error.message);
+        return {};
     }
-    return result;
+}
+
+/**
+ * Remove a mapping (legacy function - not implemented for Google Sheets yet)
+ * @param {string} inviteCode - The Discord invite code
+ */
+async function removeMapping(inviteCode) {
+    console.warn('⚠️  removeMapping not yet implemented for Google Sheets');
+    console.warn('   To remove a mapping, manually delete the row from the InviteMappings sheet');
+    return false;
+}
+
+/**
+ * Load all mappings (legacy function - kept for backwards compatibility)
+ * @returns {Promise<Object>} All mappings
+ */
+async function loadMappings() {
+    console.warn('⚠️  loadMappings is deprecated. Use getMappingsForGuild instead.');
+    return { mappings: {} };
 }
 
 module.exports = {

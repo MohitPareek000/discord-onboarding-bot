@@ -143,7 +143,218 @@ async function initializeSheetHeaders() {
   }
 }
 
+/**
+ * Add or update an invite mapping in Google Sheets
+ *
+ * @param {string} inviteCode - Discord invite code
+ * @param {Object} courseInfo - Course information
+ * @returns {Promise<boolean>} Success status
+ */
+async function saveInviteMapping(inviteCode, courseInfo) {
+  try {
+    const sheets = initializeSheetsClient();
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    const sheetName = 'InviteMappings'; // Separate sheet for mappings
+
+    // Check if invite code already exists
+    const existingData = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A:A`
+    });
+
+    const rows = existingData.data.values || [];
+    const existingRowIndex = rows.findIndex(row => row[0] === inviteCode);
+
+    const timestamp = new Date().toISOString();
+    const rowData = [
+      inviteCode,
+      courseInfo.channelId,
+      courseInfo.channelName,
+      courseInfo.label || courseInfo.channelName,
+      courseInfo.guildId,
+      courseInfo.accessChannelId || '',
+      courseInfo.accessChannelName || '',
+      timestamp
+    ];
+
+    if (existingRowIndex > 0) {
+      // Update existing row
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A${existingRowIndex + 1}:H${existingRowIndex + 1}`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [rowData]
+        }
+      });
+      console.log(`✅ Updated invite mapping in Google Sheets: ${inviteCode}`);
+    } else {
+      // Append new row
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `${sheetName}!A:H`,
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        resource: {
+          values: [rowData]
+        }
+      });
+      console.log(`✅ Added invite mapping to Google Sheets: ${inviteCode}`);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('❌ Error saving invite mapping:', error.message);
+
+    // If sheet doesn't exist, create it
+    if (error.message.includes('Unable to parse range')) {
+      console.log('📋 InviteMappings sheet not found, creating it...');
+      await initializeInviteMappingsSheet();
+      // Retry
+      return saveInviteMapping(inviteCode, courseInfo);
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Get an invite mapping from Google Sheets
+ *
+ * @param {string} inviteCode - Discord invite code
+ * @returns {Promise<Object|null>} Course info or null
+ */
+async function getInviteMapping(inviteCode) {
+  try {
+    const sheets = initializeSheetsClient();
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    const sheetName = 'InviteMappings';
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A:H`
+    });
+
+    const rows = response.data.values || [];
+
+    // Skip header row
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row[0] === inviteCode) {
+        return {
+          channelId: row[1],
+          channelName: row[2],
+          label: row[3],
+          guildId: row[4],
+          accessChannelId: row[5],
+          accessChannelName: row[6],
+          createdAt: row[7]
+        };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('❌ Error getting invite mapping:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Get all invite mappings for a specific guild
+ *
+ * @param {string} guildId - Discord guild ID
+ * @returns {Promise<Object>} Mappings object
+ */
+async function getInviteMappingsForGuild(guildId) {
+  try {
+    const sheets = initializeSheetsClient();
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    const sheetName = 'InviteMappings';
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${sheetName}!A:H`
+    });
+
+    const rows = response.data.values || [];
+    const mappings = {};
+
+    // Skip header row
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (row[4] === guildId) { // guildId is in column 5 (index 4)
+        mappings[row[0]] = {
+          channelId: row[1],
+          channelName: row[2],
+          label: row[3],
+          guildId: row[4],
+          accessChannelId: row[5],
+          accessChannelName: row[6],
+          createdAt: row[7]
+        };
+      }
+    }
+
+    return mappings;
+  } catch (error) {
+    console.error('❌ Error getting guild mappings:', error.message);
+    return {};
+  }
+}
+
+/**
+ * Initialize InviteMappings sheet with headers
+ */
+async function initializeInviteMappingsSheet() {
+  try {
+    const sheets = initializeSheetsClient();
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+
+    // First, create the sheet
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [{
+          addSheet: {
+            properties: {
+              title: 'InviteMappings'
+            }
+          }
+        }]
+      }
+    });
+
+    // Then add headers
+    const headers = [['Invite Code', 'Channel ID', 'Channel Name', 'Label', 'Guild ID', 'Access Channel ID', 'Access Channel Name', 'Created At']];
+
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'InviteMappings!A1:H1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: headers
+      }
+    });
+
+    console.log('✅ InviteMappings sheet initialized');
+    return true;
+  } catch (error) {
+    // Sheet might already exist
+    if (error.message.includes('already exists')) {
+      console.log('ℹ️  InviteMappings sheet already exists');
+      return true;
+    }
+    console.error('❌ Error initializing InviteMappings sheet:', error.message);
+    throw error;
+  }
+}
+
 module.exports = {
   appendToSheet,
-  initializeSheetHeaders
+  initializeSheetHeaders,
+  saveInviteMapping,
+  getInviteMapping,
+  getInviteMappingsForGuild,
+  initializeInviteMappingsSheet
 };

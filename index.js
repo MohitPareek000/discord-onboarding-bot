@@ -146,7 +146,7 @@ client.on('guildMemberAdd', async (member) => {
     console.log(`🔗 Used invite code: ${usedInvite.code}`);
 
     // Check if this invite is mapped to a specific course
-    courseInfo = getMapping(usedInvite.code);
+    courseInfo = await getMapping(usedInvite.code);
 
     if (courseInfo) {
       // This is a course-specific invite
@@ -154,6 +154,46 @@ client.on('guildMemberAdd', async (member) => {
       channelId = courseInfo.channelId;
       console.log(`📺 Course: ${courseInfo.label}`);
       console.log(`📺 Target Channel: ${channelName} (${channelId})`);
+
+      // Check if this is an auto-grant invite (from bulk generator)
+      if (courseInfo.autoGrant) {
+        console.log(`🔓 Auto-granting access to #${channelName}...`);
+
+        try {
+          // Get the target channel
+          const targetChannel = member.guild.channels.cache.get(channelId);
+
+          if (targetChannel) {
+            // Grant permission to view the channel
+            await targetChannel.permissionOverwrites.create(member, {
+              ViewChannel: true,
+              SendMessages: true,
+              ReadMessageHistory: true
+            });
+
+            console.log(`✅ Access granted to #${channelName} for ${member.user.tag}`);
+
+            // Send DM to user with channel link
+            try {
+              const dm = await member.user.createDM();
+              await dm.send(
+                `🎉 **Welcome to ${member.guild.name}!**\n\n` +
+                `You now have access to **#${channelName}**!\n\n` +
+                `👉 Click here to go to your channel: <#${channelId}>`
+              );
+              console.log(`📨 Sent welcome DM to ${member.user.tag}`);
+            } catch (dmError) {
+              console.error(`❌ Could not DM ${member.user.tag}:`, dmError.message);
+            }
+
+            return; // Skip normal onboarding for auto-grant invites
+          } else {
+            console.error(`❌ Target channel ${channelId} not found!`);
+          }
+        } catch (permError) {
+          console.error(`❌ Failed to grant access:`, permError.message);
+        }
+      }
     } else if (usedInvite.channel) {
       // Regular invite - use the channel from invite
       channelName = usedInvite.channel.name;
@@ -169,12 +209,16 @@ client.on('guildMemberAdd', async (member) => {
     console.log('⚠️  Could not detect which invite was used');
   }
 
-  // Start onboarding process via DM
-  try {
-    await handleOnboarding(member, channelName, channelId, onboardingSessions, client);
-  } catch (error) {
-    console.error(`❌ Error starting onboarding for ${member.user.tag}:`, error.message);
-  }
+  // NOTE: Automatic DM onboarding is disabled
+  // Users should now use the "Click to verify" button in #get-access channel
+  console.log(`ℹ️  ${member.user.tag} should go to #get-access and click the verification button`);
+
+  // Start onboarding process via DM - DISABLED
+  // try {
+  //   await handleOnboarding(member, channelName, channelId, onboardingSessions, client);
+  // } catch (error) {
+  //   console.error(`❌ Error starting onboarding for ${member.user.tag}:`, error.message);
+  // }
 });
 
 // Handle slash commands and button interactions
@@ -204,7 +248,7 @@ client.on('interactionCreate', async (interaction) => {
         });
 
         // Store the mapping
-        addMapping(invite.code, {
+        await addMapping(invite.code, {
           channelId: targetChannel.id,
           channelName: targetChannel.name,
           label: label,
@@ -315,6 +359,9 @@ client.on('interactionCreate', async (interaction) => {
             `**Course:** ${label}\n` +
             `**Target Channel:** #${targetChannel.name}\n` +
             `**Invite Link:** https://discord.gg/${invite.code}\n` +
+            `**Invite Code:** \`${invite.code}\`\n` +
+            `**Expires:** Never ⏳\n` +
+            `**Max Uses:** Unlimited ∞\n` +
             (sentToUsers.length > 0 ? `**Sent to:** ${sentToUsers.join(', ')}\n` : '') +
             (failedUsers.length > 0 ? `**Failed to send:** ${failedUsers.join(', ')}\n` : '') +
             `\nShare this link with learners:\n` +
@@ -331,7 +378,7 @@ client.on('interactionCreate', async (interaction) => {
 
     // /list-course-invites command
     if (interaction.commandName === 'list-course-invites') {
-      const mappings = getMappingsForGuild(interaction.guild.id);
+      const mappings = await getMappingsForGuild(interaction.guild.id);
       const entries = Object.entries(mappings);
 
       if (entries.length === 0) {
@@ -343,10 +390,54 @@ client.on('interactionCreate', async (interaction) => {
       for (const [code, info] of entries) {
         message += `• **${info.label}**\n`;
         message += `  Channel: #${info.channelName}\n`;
-        message += `  Link: https://discord.gg/${code}\n\n`;
+        message += `  Link: https://discord.gg/${code}\n`;
+        message += `  Code: \`${code}\`\n\n`;
       }
 
       await interaction.reply({ content: message, ephemeral: true });
+      return;
+    }
+
+    // /setup-access-button command
+    if (interaction.commandName === 'setup-access-button') {
+      const getAccessChannel = interaction.guild.channels.cache.find(ch => ch.name === 'get-access');
+
+      if (!getAccessChannel) {
+        await interaction.reply({
+          content: '❌ #get-access channel not found! Please create a channel named "get-access" first.',
+          ephemeral: true
+        });
+        return;
+      }
+
+      try {
+        const button = new ButtonBuilder()
+          .setCustomId('verify_course_access')
+          .setLabel('Click to verify')
+          .setStyle(ButtonStyle.Primary);
+
+        const row = new ActionRowBuilder().addComponents(button);
+
+        await getAccessChannel.send({
+          content: `Hello learner,\n\n` +
+            `We're excited to have you here! To get you added to your channel, we need to verify your information.\n\n` +
+            `Please click on the button below :point_down:`,
+          components: [row]
+        });
+
+        await interaction.reply({
+          content: `✅ Verification button posted in #get-access!`,
+          ephemeral: true
+        });
+
+        console.log(`📌 Posted generic verification button in #get-access`);
+      } catch (error) {
+        console.error('❌ Error posting button:', error.message);
+        await interaction.reply({
+          content: '❌ Failed to post button. Check bot permissions.',
+          ephemeral: true
+        });
+      }
       return;
     }
 
@@ -354,6 +445,50 @@ client.on('interactionCreate', async (interaction) => {
 
   // Handle button interactions
   if (!interaction.isButton()) return;
+
+  // Handle generic "Verify Course Access" button
+  if (interaction.customId === 'verify_course_access') {
+    const member = interaction.member;
+
+    await interaction.reply({
+      content: `📧 Check your DMs! I've sent you a message.`,
+      ephemeral: true
+    });
+
+    // Send DM with welcome and ask for email first
+    try {
+      const dm = await member.user.createDM();
+
+      // Welcome message
+      await dm.send(
+        `Hello learner,\n\n` +
+        `I am here to verify your details to help you join your channel :point_down:\n\n` +
+        `**Please enter your Scaler registered email ID**`
+      );
+
+      // Create a session - email collection first
+      const session = {
+        userId: member.id,
+        username: member.user.tag,
+        guildId: interaction.guild.id,
+        currentStep: 0, // Step 0 = email collection
+        data: {},
+        started: true,
+        startedAt: Date.now(),
+        needsInviteCode: true // Flag that we'll ask for invite code after email
+      };
+
+      onboardingSessions.set(member.id, session);
+      console.log(`\n🔘 ${member.user.tag} clicked Verify Course Access button`);
+    } catch (error) {
+      console.error(`❌ Failed to DM ${member.user.tag}:`, error.message);
+      await interaction.followUp({
+        content: '❌ Could not send you a DM. Please enable DMs from server members in your Privacy Settings.',
+        ephemeral: true
+      });
+    }
+    return;
+  }
 
   // Handle "Get Access" button click (existing members in get-access channel)
   if (interaction.customId.startsWith('get_access_')) {
@@ -551,6 +686,45 @@ client.on('messageCreate', async (message) => {
 
   // Don't process messages if user hasn't clicked Start button yet
   if (!session.started) {
+    return;
+  }
+
+  // Handle invite code collection (after email verification)
+  if (session.waitingForInviteCode) {
+    const inviteCode = message.content.trim();
+
+    // Check if this is a valid invite code
+    const courseInfo = await getMapping(inviteCode);
+
+    if (!courseInfo) {
+      await message.channel.send(
+        `❌ **Invalid invite code**\n\n` +
+        `**Please enter correct Invite Code:**\n\n` +
+        `You might have received the invite code via:\n` +
+        `• Email\n` +
+        `• Class notice board\n` +
+        `• First class topic pre-read section`
+      );
+      return;
+    }
+
+    // Valid invite code - update session and finalize
+    session.channelName = courseInfo.channelName;
+    session.channelId = courseInfo.channelId;
+    session.waitingForInviteCode = false;
+
+    console.log(`✅ ${message.author.tag} provided valid invite code: ${inviteCode} → #${courseInfo.channelName}`);
+
+    await message.channel.send(`**Channel Found: ${courseInfo.channelName}**\n\n⏳ Granting access...`);
+
+    // Now finalize the onboarding
+    const { finalizeOnboarding } = require('./utils/onboarding');
+    try {
+      await finalizeOnboarding(message, session, onboardingSessions, client);
+    } catch (error) {
+      console.error(`❌ Error finalizing after invite code:`, error.message);
+      await message.channel.send('⚠️ An error occurred. Please contact an administrator.').catch(() => {});
+    }
     return;
   }
 

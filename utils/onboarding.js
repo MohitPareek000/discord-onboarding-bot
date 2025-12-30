@@ -161,6 +161,24 @@ async function finalizeOnboarding(message, session, sessions, client) {
     console.log(`   Program: ${verificationResult.learnerData.program}`);
     console.log(`   Batch: ${verificationResult.learnerData.batch}`);
 
+    // Check if this session needs invite code (button-based flow)
+    if (session.needsInviteCode && !session.channelId) {
+      // Email verified, now ask for invite code
+      await message.channel.send(
+        `:white_check_mark: **Email verified successfully!**\n\n` +
+        `**Please enter your invite-code of your channel** (eg: rTAnQCeWAe)\n\n` +
+        `You might have received the invite code via:\n` +
+        `• Email\n` +
+        `• Class notice board\n` +
+        `• First class topic pre-read section`
+      );
+
+      // Mark that we're now waiting for invite code
+      session.waitingForInviteCode = true;
+      session.needsInviteCode = false;
+      return; // Don't finalize yet, wait for invite code
+    }
+
     // Prepare data for Google Sheets
     const sheetData = {
       email: session.data.email,
@@ -217,13 +235,7 @@ async function finalizeOnboarding(message, session, sessions, client) {
     }
 
     // Send confirmation message with button
-    const confirmationMessage = `
-✅ **All set!** Your information has been saved successfully.
-
-You've been assigned the **${roleName}** role and now have access to your course materials.
-
-Welcome aboard! 🎉
-    `.trim();
+    const confirmationMessage = `:white_check_mark: **All set! Your information has been saved successfully.**\n\n**Welcome aboard!** :tada:`;
 
     // Create button component if we have a channel
     if (session.channelId) {
@@ -237,7 +249,7 @@ Welcome aboard! 🎉
       const row = new ActionRowBuilder().addComponents(viewChannelButton);
 
       await message.channel.send({
-        content: confirmationMessage + `\n\nClick the button below to access your course channel:`,
+        content: confirmationMessage + `\n\n**Click the button below to access your course channel**`,
         components: [row]
       });
     } else {
@@ -267,6 +279,7 @@ Welcome aboard! 🎉
 module.exports = {
   handleOnboarding,
   handleResponse,
+  finalizeOnboarding,
   QUESTIONS,
   QUESTION_ORDER
 };
