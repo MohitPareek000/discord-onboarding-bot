@@ -16,9 +16,11 @@
  */
 
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection, ButtonBuilder, ButtonStyle, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { handleOnboarding } = require('./utils/onboarding');
 const { addMapping, getMapping, getMappingsForGuild } = require('./utils/inviteManager');
+const { verifyPaidLearner } = require('./utils/emailVerification');
+const { appendToSheet } = require('./utils/sheets');
 
 // Validate required environment variables
 const requiredEnvVars = ['DISCORD_TOKEN', 'SPREADSHEET_ID', 'GOOGLE_APPLICATION_CREDENTIALS'];
@@ -38,7 +40,7 @@ const client = new Client({
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.MessageContent,
   ],
-  partials: ['CHANNEL']
+  partials: [Partials.Channel, Partials.Message, Partials.User]
 });
 
 // Store invite codes before member joins to track which invite was used
@@ -443,49 +445,151 @@ client.on('interactionCreate', async (interaction) => {
 
   }
 
+  // Handle Modal submissions
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId === 'verification_modal') {
+      // Show "Granting Course Access..." instead of default "thinking" animation
+      await interaction.reply({ content: '⏳ **Granting Course Access...**', ephemeral: true });
+
+      const email = interaction.fields.getTextInputValue('email_input').trim().toLowerCase();
+      const inviteCode = interaction.fields.getTextInputValue('invite_code_input').trim();
+      const member = interaction.member;
+      const guild = interaction.guild;
+
+      console.log(`📝 Modal submitted by ${member.user.tag}: email=${email}, inviteCode=${inviteCode}`);
+
+      // Step 1: Verify email
+      const emailResult = verifyPaidLearner(email);
+      if (!emailResult.isVerified) {
+        await interaction.editReply({
+          content: `❌ **Email not found**\n\n` +
+            `The email **${email}** is not registered with Scaler.\n\n` +
+            `Please make sure you're using your Scaler registered email ID.`
+        });
+        return;
+      }
+
+      console.log(`✅ Email verified for ${member.user.tag}: ${email}`);
+
+      // Step 2: Verify invite code
+      console.log(`🔍 Looking up invite code: ${inviteCode}`);
+      const courseInfo = await getMapping(inviteCode);
+      console.log(`📋 Invite code lookup result:`, courseInfo ? courseInfo.channelName : 'NOT FOUND');
+
+      if (!courseInfo) {
+        console.log(`❌ Invalid invite code: ${inviteCode}`);
+        await interaction.editReply({
+          content: `❌ **Invalid invite code**\n\n` +
+            `**Please enter correct Invite Code:**\n\n` +
+            `You might have received the invite code via:\n` +
+            `• Email\n` +
+            `• Class notice board\n` +
+            `• First class topic pre-read section`
+        });
+        return;
+      }
+
+      console.log(`✅ Invite code verified: ${inviteCode} -> ${courseInfo.channelName}`);
+
+      // Step 3: Grant access to the channel
+      const targetChannel = guild.channels.cache.get(courseInfo.channelId);
+      if (!targetChannel) {
+        await interaction.editReply({
+          content: `❌ **Channel not found**\n\nThe course channel no longer exists. Please contact support.`
+        });
+        return;
+      }
+
+      try {
+        // Grant view and send permissions to the user
+        await targetChannel.permissionOverwrites.edit(member.id, {
+          ViewChannel: true,
+          SendMessages: true,
+          ReadMessageHistory: true
+        });
+
+        console.log(`✅ Access granted to ${member.user.tag} for channel #${targetChannel.name}`);
+
+        // Save learner data to Google Sheet
+        try {
+          await appendToSheet({
+            email: email,
+            discordUsername: member.user.tag,
+            channel: targetChannel.name
+          });
+          console.log(`📊 Learner data saved to Google Sheet`);
+        } catch (sheetError) {
+          console.error(`⚠️ Failed to save to sheet (access still granted):`, sheetError.message);
+        }
+
+        // Create button to view the channel
+        const viewChannelButton = new ButtonBuilder()
+          .setLabel('View Course Channel')
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://discord.com/channels/${guild.id}/${targetChannel.id}`);
+
+        const row = new ActionRowBuilder().addComponents(viewChannelButton);
+
+        await interaction.editReply({
+          content: `:white_check_mark: **All set! Your information has been saved successfully.**\n\n` +
+            `**Welcome aboard!** :tada:\n\n` +
+            `**Click the button below to access your course channel**`,
+          components: [row]
+        });
+
+      } catch (error) {
+        console.error(`❌ Failed to grant access:`, error.message);
+        await interaction.editReply({
+          content: `❌ **Failed to grant access**\n\nPlease contact support for assistance.`
+        });
+      }
+      return;
+    }
+  }
+
   // Handle button interactions
   if (!interaction.isButton()) return;
 
-  // Handle generic "Verify Course Access" button
+  console.log(`🔘 Button clicked: ${interaction.customId} by ${interaction.user.tag}`);
+
+  // Handle generic "Verify Course Access" button - Show Modal
   if (interaction.customId === 'verify_course_access') {
-    const member = interaction.member;
+    console.log(`🔘 ${interaction.user.tag} clicked Verify Course Access button`);
 
-    await interaction.reply({
-      content: `📧 Check your DMs! I've sent you a message.`,
-      ephemeral: true
-    });
+    // Create the modal
+    const modal = new ModalBuilder()
+      .setCustomId('verification_modal')
+      .setTitle('Verify Your Access');
 
-    // Send DM with welcome and ask for email first
+    // Email input
+    const emailInput = new TextInputBuilder()
+      .setCustomId('email_input')
+      .setLabel('Your Scaler registered email ID')
+      .setPlaceholder('example@gmail.com')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    // Invite code input
+    const inviteCodeInput = new TextInputBuilder()
+      .setCustomId('invite_code_input')
+      .setLabel('Your invite code (eg: rTAnQCeWAe)')
+      .setPlaceholder('Enter the invite code from your email/class')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    // Add inputs to action rows (each input needs its own row)
+    const emailRow = new ActionRowBuilder().addComponents(emailInput);
+    const inviteCodeRow = new ActionRowBuilder().addComponents(inviteCodeInput);
+
+    modal.addComponents(emailRow, inviteCodeRow);
+
+    // Show the modal - silently ignore errors (e.g., if user clicks too fast)
     try {
-      const dm = await member.user.createDM();
-
-      // Welcome message
-      await dm.send(
-        `Hello learner,\n\n` +
-        `I am here to verify your details to help you join your channel :point_down:\n\n` +
-        `**Please enter your Scaler registered email ID**`
-      );
-
-      // Create a session - email collection first
-      const session = {
-        userId: member.id,
-        username: member.user.tag,
-        guildId: interaction.guild.id,
-        currentStep: 0, // Step 0 = email collection
-        data: {},
-        started: true,
-        startedAt: Date.now(),
-        needsInviteCode: true // Flag that we'll ask for invite code after email
-      };
-
-      onboardingSessions.set(member.id, session);
-      console.log(`\n🔘 ${member.user.tag} clicked Verify Course Access button`);
+      await interaction.showModal(modal);
+      console.log(`✅ Modal shown to ${interaction.user.tag}`);
     } catch (error) {
-      console.error(`❌ Failed to DM ${member.user.tag}:`, error.message);
-      await interaction.followUp({
-        content: '❌ Could not send you a DM. Please enable DMs from server members in your Privacy Settings.',
-        ephemeral: true
-      });
+      // Silently ignore - user can click again
+      console.log(`⚠️ Modal not shown (user may have clicked too fast): ${error.message}`);
     }
     return;
   }
