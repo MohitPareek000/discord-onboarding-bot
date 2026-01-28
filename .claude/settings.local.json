@@ -16,7 +16,9 @@
       "Bash(node check-bot-access.js:*)",
       "Bash(git restore:*)",
       "Bash(node generate-bulk-invites.js:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(brew install:*)",
+      "Bash(~/.local/bin/gh auth login --web)"
     ],
     "deny": [],
     "ask": []
